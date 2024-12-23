@@ -1,13 +1,21 @@
 const express = require('express')
 const cors = require('cors')
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 require('dotenv').config()
 
 const port = process.env.PORT || 5000
 const app = express()
 
+const corsOptions = {
+    origin: ['http://localhost:5173'],
+    credentials: true, optionalSuccessStatus: 200,
+}
+
 //middleware
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(express.json())
+app.use(cookieParser())
 
 
 
@@ -22,6 +30,17 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
+const verifyToken = (req, res, next) => {
+    const token = req.cookies?.token
+    if (!token) return res.status(401).send({ message: 'unauthorized access' })
+    jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: 'unauthorized access' })
+        }
+        req.user = decoded
+    })
+    next()
+}
 
 async function run() {
     try {
@@ -33,6 +52,26 @@ async function run() {
 
         const serviceCollection = client.db('Services-db').collection('services')
         const bookedCollection = client.db('Services-db').collection('booked')
+        //jwt
+        app.post('/jwt', async (req, res) => {
+            const email = req.body
+            const token = jwt.sign(email, process.env.SECRET_KEY, { expiresIn: '365d' })
+            console.log(token);
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+            }).send({ succcess: true })
+        })
+
+        //clear cookie
+        app.get('/logout', async (req, res) => {
+            res.clearCookie('token', {
+                maxAge: 0,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+            }).send({ succcess: true })
+        })
 
         app.post('/add-service', async (req, res) => {
             const serviceData = req.body
@@ -104,9 +143,15 @@ async function run() {
             res.send(result)
         })
         //booked data by specefic mail
-        app.get('/add-book/:email', async (req, res) => {
+        app.get('/add-book/:email', verifyToken, async (req, res) => {
+            const decodedEmail = req.user?.email
             const email = req.params.email
-            const query = { 'currentUser_email': email }
+            console.log('email from token', decodedEmail);
+            console.log('email from user', email);
+            if (decodedEmail !== email){
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+                const query = { 'currentUser_email': email }
             const result = await bookedCollection.find(query).toArray();
             res.send(result);
         })
