@@ -32,6 +32,7 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         const serviceCollection = client.db('Services-db').collection('services')
+        const bookedCollection = client.db('Services-db').collection('booked')
 
         app.post('/add-service', async (req, res) => {
             const serviceData = req.body
@@ -42,6 +43,18 @@ async function run() {
         //get all service
         app.get('/services', async (req, res) => {
             const result = await serviceCollection.find().toArray()
+            res.send(result)
+        })
+        //search service
+        app.get('/all-services', async (req, res) => {
+            const search = req.query.search
+            console.log(search);
+            let query = {
+                service_name: {
+                    $regex: search, $options: 'i'
+                },
+            }
+            const result = await serviceCollection.find(query).toArray()
             res.send(result)
         })
         // get specific user data
@@ -76,6 +89,43 @@ async function run() {
             const options = { upsert: true }
             const result = await serviceCollection.updateOne(query, updated, options)
             console.log(result);
+            res.send(result)
+        })
+        //add booked
+        app.post('/add-book', async (req, res) => {
+            const bookData = req.body
+            const result = await bookedCollection.insertOne(bookData)
+            console.log(result);
+            res.send(result)
+        })
+        //get bookded data
+        app.get('/add-book', async (req, res) => {
+            const result = await bookedCollection.find().toArray()
+            res.send(result)
+        })
+        //booked data by specefic mail
+        app.get('/add-book/:email', async (req, res) => {
+            const email = req.params.email
+            const query = { 'currentUser_email': email }
+            const result = await bookedCollection.find(query).toArray();
+            res.send(result);
+        })
+        //service request by specefic mail
+        app.get('/service-to/:email', async (req, res) => {
+            const email = req.params.email
+            const query = { 'provider_email': email }
+            const result = await bookedCollection.find(query).toArray();
+            res.send(result);
+        })
+        //update status
+        app.patch('/service-update/:id', async (req, res) => {
+            const id = req.params.id
+            const { status } = req.body
+            const filter = { _id: new ObjectId(id) }
+            const updated = {
+                $set: { status },
+            }
+            const result = await bookedCollection.updateOne(filter, updated)
             res.send(result)
         })
 
