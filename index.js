@@ -1,14 +1,14 @@
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const jwt = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
-require('dotenv').config()
 
 const port = process.env.PORT || 5000
 const app = express()
 
 const corsOptions = {
-    origin: ['http://localhost:5173'],
+    origin: ['http://localhost:5173', 'https://services-43f57.firebaseapp.com', 'https://assingment-11-server-six.vercel.app', 'https://services-43f57.web.app'],
     credentials: true, optionalSuccessStatus: 200,
 }
 
@@ -47,7 +47,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         // await client.connect();
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         const serviceCollection = client.db('Services-db').collection('services')
@@ -56,7 +56,7 @@ async function run() {
         app.post('/jwt', async (req, res) => {
             const email = req.body
             const token = jwt.sign(email, process.env.SECRET_KEY, { expiresIn: '365d' })
-            console.log(token);
+            // console.log(token);
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
@@ -76,7 +76,7 @@ async function run() {
         app.post('/add-service', async (req, res) => {
             const serviceData = req.body
             const result = await serviceCollection.insertOne(serviceData)
-            console.log(result);
+            // console.log(result);
             res.send(result)
         })
         //get all service
@@ -87,7 +87,7 @@ async function run() {
         //search service
         app.get('/all-services', async (req, res) => {
             const search = req.query.search
-            console.log(search);
+            // console.log(search);
             let query = {
                 service_name: {
                     $regex: search, $options: 'i'
@@ -127,14 +127,14 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const options = { upsert: true }
             const result = await serviceCollection.updateOne(query, updated, options)
-            console.log(result);
+            // console.log(result);
             res.send(result)
         })
         //add booked
         app.post('/add-book', async (req, res) => {
             const bookData = req.body
             const result = await bookedCollection.insertOne(bookData)
-            console.log(result);
+            // console.log(result);
             res.send(result)
         })
         //get bookded data
@@ -146,8 +146,8 @@ async function run() {
         app.get('/add-book/:email', verifyToken, async (req, res) => {
             const decodedEmail = req.user?.email
             const email = req.params.email
-            console.log('email from token', decodedEmail);
-            console.log('email from user', email);
+            // console.log('email from token', decodedEmail);
+            // console.log('email from user', email);
             if (decodedEmail !== email){
                 return res.status(401).send({ message: 'unauthorized access' })
             }
